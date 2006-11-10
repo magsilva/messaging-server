@@ -1,0 +1,59 @@
+15/11/2002
+- Some fixed in message.c and server.c (bad packet handling)
+- Added background user status checker and updater.
+- Changed default server's listening port to 3456 (it was random before)
+- Added user data manipulation functions (data.*)
+- Major Makefile changes
+- Some test programs removed (preparing for packaging, first stage)
+- Reviewed all Danilo's code
+
+14/11/2002
+- Updated fifo.c so that fifo_wait_empty_on_destruction works as intended.
+- Add fifo_wait_empty_on_destruction (needed in server.c)
+- Yet some fix at fifo_get
+- Minor fix at fifo_get (NULL head's case)
+- Added signal handling (the server now exits gracefully)
+- Fixed sendMessage (message.h)
+- Improved fifo.c (now fifo_get blocks on empty fifo till someone puts something).
+- Fixed fifo_put()
+- Added crc32 functions (crc32.c, crc32.h)
+- Created crc32test
+- Added crc16 function (crc16.c, crc16.h)
+- Minor specs changes at crc16 and crc32
+- Createcd crc16test
+- Changed message.h (added crc16 check field, sequence and message id)
+- Changed message.c (adaption to new message's field)
+- Added message checking (the program doesn't segmentation fault anymore on invalid
+packages).
+- Makefile modifications
+- Reorganized software version
+
+13/11/2002
+- Created message_type.h
+- Created message_type.c
+- Created common.h (obvious reasons)
+- Created common.c (some send and receive helper functions)
+- Modified message.h (updated the message_t structure)
+- Removed some garbage from fifoTest.c
+- Improved balance threads criteria (max and min threads)
+- Some minor optimizations at setWorker and Receiver threads
+- Wrote some source code documentation
+- Create fifo test code
+- Fixed the segmentation fault (I was using a mutex pointer instead of mutex at
+struct fifo_t, just changed it and everything started working).
+- Fixed some fifo test's warnings.
+- Modified icq_arquivo (and renamed to dbManager). Mostly indention, memory allocation
+and file closure fixes.
+
+
+12/11/2002
+- Wrote some documentation
+- Improved threads initialization.
+- Created "balance thread" function.
+- Created and modified (simplified) finalizeThreads function
+- Created setReceiverThreads function.
+- Created setWorkerThreads and setReceiverThreads
+- Separated server.h from server.c
+- Removed some defines, using variables instead (more flexible possibilities for
+changing configuration on the fly).
+
