@@ -1,0 +1,361 @@
+                          UNIT DEVELOPMENT FOLDER
+
+ Grupo: ePanimondas
+ Integrantes:
+   Danilo Rogério Boccardo <danilo@icmc.usp.br>
+   Marco Aurélio Graciotto Silva <magsilva@icmc.usp.br>
+   Rodrigo de Oliveira Plotze <roplotze@icmc.usp.br>
+ Tema: Message Server
+ Nome programa: ePanimondas Message Server
+ Versão: 0.6
+
+
+Seção #	Descrição		Data Prevista	Data Término   Desenvolvedores
+1	Introdução		20/10/2002	20/10/2002	ePanimondas
+2	Requisitos		25/10/2002	02/11/2002	ePanimondas
+3	Descrição do Projeto	01/11/2002	25/10/2002	ePanimondas
+4	Implementação		15/11/2002	15/11/2002	ePanimondas
+5	Interface Externa	15/11/2002	15/11/2002	ePanimondas
+6	Funcionalidades		15/11/2002	15/11/2002	ePanimondas
+7	Código			15/11/2002	15/11/2002	ePanimondas
+8	Testes			15/11/2002	15/11/2002	ePanimondas
+9	Observações		15/11/2002	15/11/2002	ePanimondas
+10	Revisão			-		 -		Estagiários
+
+
+   # 01 Introdução
+
+        Esta Unit Development Folder (UDF) descreve  os detalhes da
+       implementação de uma aplicação cliente/servidor para envio de
+                         mensagens similar ao ICQ.
+
+   # 02 Requisitos
+
+   Este programa deve implementar um sistema de mensagem similar ao ICQ.
+   O sistema deve possuir pelo menos as seguintes características:
+     * O modo cliente deve ser desenvolvido utilizando ncurses (uma
+       biblioteca Linux para trabalhar com xterm).
+     * Avisar os usuários quando um novo usuário se torna online ou
+       offline.
+     * Um comando (ou janela) que mostra que está online no momento.
+     * Habilidade de enviar mensagens para um usuário particular.
+     * Habilidade de deixar mensagens para usuários offline. E quando
+       este usuário se tornar online ele deverá receber essas mensagens.
+
+
+     * Nota: O programa de ser implementado com memória compartilhada
+       (protegendo as áreas de memória compartilhada com mutex e/ou
+       semáforos) e threads. O programa não precisa armazenar informações
+       em arquivos.
+
+   # 03 Descrição do Projeto
+
+
+                             3.1. Modo Cliente
+
+    Todas as mensagens enviadas ao servidor devem ser confirmadas. Se a
+      confirmação não ocorrer em um tempo previamente estabelecido (10
+     segundos), a mensagem deve ser reenviada. Esta atividade deve ser
+     repetida por no máximo três vezes. Devido a esta característica de
+    timeout, cada comando enviado é executado em uma thread, liberando o
+   programa para receber mensagens do servidor, garantindo assim uma boa
+      usabilidade da aplicação. Atividades desempenhadas pelo cliente:
+     * Conectar no sistema (login)
+     * Cadastrar novos usuários
+     * Enviar mensagens
+     * Visualizar mensagens
+     * Adicionar usuários à lista de contatos
+     * Remover usuários da lista de contatos
+     * Desconectar do sistema (logout)
+
+                             3.2. Modo Servidor
+
+      Objetivando garantir a escalabilidade do sistema, foi adota uma
+   solução elegante, com uma camada de threads para receber os pacotes e
+   uma outra responsável pelo tratamento destes pacotes. Enfim, existirá
+     uma fila, em memória compartilhada. Os threads recebem os pacotes,
+      verificam se eles são válidos e os coloca na fila. Os threads de
+   trabalho pegam as mensagens da fila e as processam (inclusive fazendo
+      o trabalho de confirmação). O número de threads de recebimento é
+   sempre inferior aos de trabalho. Algumas otimizações foram feitas. Se
+     a fila estiver próxima de sua capacidade máxima, são criados novos
+        threads de trabalho e é reduzida a quantidade de threads de
+    recebimento. Se a fila estiver vazia, ambos os tipos de threads têm
+    sua quantidade reduzida. Existe um limite mínimo de threads de cada
+               tipo, sempre obedecendo a relação de threads.
+
+                         3.3. Formato das Mensagens
+
+    Uma questão que tem de ser estudada a respeito do sistema é quanto a
+    sua escalabilidade (principalmente o aumento da mesma). A utilização
+      de conexões (TCP) teria um custo muito elevado para uma taxa de
+   comunicação cliente-servidor tão reduzida. Também existe a questão de
+    criar uma estratégia para atender o máximo de requisições num espaço
+         de tempo utilizando da melhor maneira possível os recursos
+   computacionais disponíveis na máquina. A primeira solução foi reduzir
+     a carga de trabalho no servidor o máximo possível. A utilização de
+    conexões seria muito cara, por isto optou-se por pacotes (UDP). Além
+    disso, o formato dos dados transportados foi feito de maneira a não
+   desperdiçar muito espaço, ser flexível e previsível (tamanho variável
+                    porém calculável com antecedência):
+     * Endereço do remetente ou destinatário
+     * Tipo de mensagem
+     * Seqüência da mensagem
+     * Tamanho da mensagem
+     * Dados da mensagem
+
+     Para tratar todos os pacotes que chegam, optou-se por utilizar um
+   conjunto de threads dinamicamente configuráveis de acordo com a carga
+   de trabalho (mas variando de um limite inferior para um superior). As
+   threads lêem os pacotes e os coloca numa fila. Observe que não é feito
+    nenhum tratamento para desfragmentar os pacotes, isto foi deixado a
+      cargo do programa cliente. Com isto economiza-se um bom tempo de
+   processamento. A segunda etapa é enviar as mensagens que estão na fila
+   para os seus respectivos destinos. Isto fica a cargo de um outro pool
+   de threads, também dinamicamente configuráveis. Estas threads realizam
+      um pouco mais de trabalho, suas tarefas vão depender do tipo de
+    mensagem a ser enviada para o destinatário. A divisão do processo de
+     tratamento dos pacotes no servidor tem esta arquitetura para poder
+   suportar tráfegos é levados porém momentâneos de pacotes. Conforme em
+      [Barney98], dispositivos com comunicação via rede perdem pacotes
+      facilmente e, quando enviam, é de se esperar que seja uma grande
+   quantidade em pouco tempo. Com esta estrutura, podemos receber muitos
+    pacotes e, apesar de ter uma pequena demora em repassá-los para seus
+   destinos, ao menos aumenta a possibilidade de conseguir fazê-lo com um
+                   grande número de usuários no sistema.
+
+                           3.4 Tipos de Mensagem
+
+      Mensagem Tipo 0: A mensagem de tipo 0 é utilizada para teste, de
+     maneira análoga ao RPC NULL. Ao recebê-la, o cliente (ou servidor)
+          deverá enviar uma mensagem de acknowledge ao remetente.
+
+   Mensagem Tipo 1: Utilizada para se registrar (dar login) no sistema. A
+      mensagem de ida contém o identificador do usuário e sua senha. A
+   confirmação não contém dado nenhum em especial (confirmação simples).
+
+   Mensagem Tipo 2: Utilizada para se cadastrar no sistema. A mensagem de
+   ida contém o nome do usuário, apelido, email e a senha. A confirmação
+    contém o identificador. Se o identificador for 0, significa que não
+                   foi possível criar a conta do usuário.
+
+      Mensagem Tipo 3: O envio/recebimento de mensagens para/de outros
+   usuários é feito por meio deste tipo de mensagem. Esta mensagem vai do
+   remetente para o servidor e depois do servidor para o destinatário. A
+       mensagem contém o texto da mensagem. O remetente receberá uma
+     confirmação simples do servidor. O destinatário deverá enviar uma
+           confirmação simples ao servidor ao receber a mensagem.
+
+    Mensagem Tipo 4: Esse tipo de mensagem é utilizada quando o cliente
+       adiciona um novo contato a sua lista de usuários. Uma mensagem
+   contendo o código de identificação (userID) do novo contato é enviada
+     ao servidor. O servidor verifica se o userID é valido, ou seja, se
+        está cadastrado no servidor, e então retorna uma mensagem de
+   confirmação (tipo 7) contendo 1 se positivo (o userID do novo contato
+                        exite) ou -1 caso contrário.
+
+    Mensagem Tipo 5: As mensagens do Tipo 5 são utilizadas para informar
+       ao servidor quando o cliente apaga um contato da sua lista de
+     usuários. O cliente envia uma mensagem para o servidor contendo o
+      código de identificação (userID) do usuário apagado. Com isso, o
+   servidor atualiza a lista de contatos do cliente e envia uma mensagem
+                      de confirmação (sem argumentos).
+
+      Mensagem Tipo 6: Mensagem de requisição da lista de contatos do
+      cliente. O servidor retorna uma mensagem de acknowledge simples.
+
+     Mensagem Tipo 7: Mensagem de acknowledge. Contém como argumento o
+   resultado da operação (que depende do tipo de mensagem para a qual se
+          fez o acknowledge, mas geralmente é um número inteiro).
+
+   Mensagem Tipo 8: Mensagem de logoff. Não contém argumentos e o cliente
+                   recebe uma confirmação sem argumentos.
+
+    Mensagem Tipo 9: Mensagem com a lista de contatos do cliente. Contém
+       os dados no seguinte formato: userID, nick,estado. Não possui
+    acknowledge. O servidor pode enviar mensagens deste tipo a qualquer
+                            hora para o usuário.
+
+                              4. Implementação
+
+                                4.1. Sockets
+
+        struct sockaddr {
+                unsigned short
+                sa_family ;             // Tipo de endereço , AF_xxx
+                char sa_data[ 14 ];     // Geralmente endereço e porta
+        }
+        struct sockaddr_in {
+                short int sin_family;   // Tipo de endereço
+                unsigned short int sin_port;    // Número da porta
+                struct in_addrsin_addr;         // Número IP
+                unsigned char sin_zero[8];      // Para dar o mesmo tamanho de
+sockaddr
+        };
+        struct in_addr {
+                unsigned long s_addr;
+        };
+
+    Os dados em sin_port e sin_addr devem estar em "network byte order".
+      Além deste formato, o outro disponível é "host byte order". Para
+   converter de um para o outro é necessária a utilização de um conjunto
+         de funções cujos nomes são determinados da seguinte forma:
+     *  h para host
+     *  to significando a conversão para
+     *  n para network
+     *  s para short
+
+               Por exemplo, htons = host para network short.
+                                      
+    
+
+   4.2 Threads
+
+   4.2.1 Cancelamento de threads
+
+          int pthread _setcancelstate ( int state , int * oldstate ) ;
+
+   Os estados possíveis são:
+
+     PTHREAD_CANCEL_ENABLE Habilita o cancelamento.
+     PTHREAD_CANCEL_DISABLE Desabilita o cancelamento.
+                  int pthread _setcancellt ype ( int type , int *oldtype
+     ) ;
+     PTHREAD_CANCEL_ASYNCHRONOUS cancela o thread assim que a requisição
+     para cancelar
+     é recebida.
+     PTHREAD_CANCEL_DEFERRED cancela o thread somente quando alcançar um
+     ponto de cancelamento.
+
+
+   Os threads criados através da pthread_create sempre podem ser
+   cancelados, sendo este cancelamento deferido até um ponto de
+   cancelamento (PTHREAD_CANCEL_ENABLE e PTHREAD_CANCEL_DEFERRED
+   respectivamente). Os pontos de cancelamento são pontos na execução do
+   programa em que um teste por pedidos de cancelamento é feito e, se
+   positivo, atendido. Somente as seguintes funções são pontos de
+   cancelamento:
+     * pthread_join
+     * pthread_cond_wait
+     * pthread_cond_timedwait
+     * pthread_testcancel
+     * sem_wait
+     * sigwait
+
+   A função pthread_testcancel não faz nada, trata-se apenas de um ponto
+   de cancelamento forçado, utilizado geralmente em longas seqüências de
+   código que não possui nenhum ponto de cancelamento.
+
+
+   4.2.2 Opções para finalização de threads
+
+   A finalização de um thread (pthread_exit() ou cancelamento) pode ser
+   antecedida pela execução de uma seqüência de chamadas de funções.
+   Através do conjunto de funções mostrado abaixo, pode-se empilhar (e
+   desempilhar) funções a serem executadas antes do término de um thread.
+   As funções são executadas em ordem LIFO (os últimos serão os
+   primeiros). Graças a esta funcionalidade, é possível liberar recursos
+   que por ventura o thread esteja utilizando quando sendo terminado (por
+   exemplo, um lock em um mutex).
+
+   void pthread \_cleanup \_pop ( int execute );
+   void pthread \ _cleanup \ _push \ _defer \ _np ( void ( * routine ) (
+   void * ) , void * arg );
+   void pthread \ _cleanup \ _pop \ _restore \ _np ( int execute );
+
+     pthread_cleanup_push Empilha uma função e seus argumentos.
+     pthread_cleanup_pop Desempilha a última função empilhada. Se o
+     argumento de execução (void *arg é diferente de zero, esta função
+     recém-retirada é executada, caso contrário ela é apenas removida.
+
+
+   # 05 Interface Externa
+
+     O sistema ePanimondas Message Server é composto de um servidor que
+                    aceita várias conexões dos clientes.
+
+                                 Servidor:
+
+       As conexões com o servidor são feitas através da porta 3456. Para
+          iniciar o servidor basta executar o comando: ./servidor
+
+                              [img_server.jpg]
+                           [img_server_sinal.jpg]
+
+                                  Cliente:
+
+        O modo cliente foi desenvolvido utilizando a biblioteca ncurses
+      para interface xterm. Para iniciar o cliente deve-se executar o
+   comando: ./cliente <servidor>, onde servidor é o IP ou HOST da máquina
+                   onde está sendo executado o servidor.
+
+                         [img_cliente_inicial.jpg]
+
+                          [img_cliente_login.jpg]
+
+
+                         [img_cliente_newuser.jpg]
+
+   # 06 Funcionalidades 
+
+             Com sistema ePanimondas Message Server é possível:
+     * conectar ao servidor de mensagens (modo cliente)
+     * cadastrar novos usuários (modo cliente)
+     * enviar mensagem de um cliente para outro (modo cliente)
+     * visualizar mensagens recebidas (modo cliente)
+     * adicionar usuários a lista de contatos (modo cliente)
+     * remover usuários da lista de contatos (modo cliente)
+     * verificar os usuários que estão online (modo cliente)
+     * finalizar servidor CTRL+C (modo servidor)
+
+   # 07 Código 
+
+
+     * Binário servidor + cliente: [6]ePaminondas-bin.tar.gz
+     * Código fonte: [7]ePaminondas-source.tar.gz
+
+     Para compilar utilize make
+
+
+   # 08 Testes 
+
+
+     * Verificação e tratamento dos sinais assíncronos no servidor, com
+       isso o servidor não termina seu funcionamento de forma inadequada.
+     * Teste de carga no servidor, quando o servidor se encontra em
+       situação de sobrecarga ele dinamicamente altera o numero de
+       threads ativas, aumentando ou diminuindo de acordo com a situação.
+     * Envio das mensagens pelo cliente para o servidor
+     * Verificação do cabeçalho das mensagens por parte do servidor (CRC
+       16);
+
+   # 09 Observações 
+
+
+
+       Nossa estratégia de utilização de pacotes UDP, com objetivo de
+     utilizar melhor threads e dessa forma não sobrecarregar o servidor
+      criando conexões desnecessárias, não se mostrou muito eficiente.
+      Apesar de ter aliviado o problema da carga do servidor quanto ao
+     problema de envio e recebimento de dados, a alta granularidade do
+   sistema exigiu mecanismos de sincronização altamente complexos para um
+                          eficiente funcionamento.
+
+                                Referências:
+
+     [Barney98] Barney, B.M. Introduction to POSIX Threads Programming.
+          Maui High Performance Computing Center. September, 1998.
+
+   # 10 Revisão
+
+
+
+          A revisão do trabalho ficou a cargo do grupo Estagiários
+
+
+     _________________________________________________________________
+
+                         © 2002 - ePanimondas Group
+
+   6. http://java.icmc.sc.usp.br/os_course/homework/3/assignments/1/ePanimondas/ePaminondas-bin.tar.gz
+   7. http://java.icmc.sc.usp.br/os_course/homework/3/assignments/1/ePanimondas/ePaminondas-source.tar.gz

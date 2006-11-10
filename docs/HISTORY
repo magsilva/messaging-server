@@ -1,0 +1,14 @@
+Este trabalho surgiu da disciplina de Sistemas Operacionais, ministrada pelo
+professor Dilvan. Apesar do trabalho não ter sido concluído ou, melhor dizendo,
+não tenha atingido os objetivos necessários, serviu como um belo aprendizado a
+respeito de:
+
+ * Vantagens e desvantagens da utilização de pacotes UDP.
+ * Utilização da biblioteca glibc-linuxthreads (POSIX Threads) e detecção de
+   alguns problemas ou "características".
+ * Arquitetura de servidores baseados em UDP.
+ * Tratamento de sinais em programas multithreaded.
+ * Biblioteca ncurses.
+ * Utilização de ferramentas de depuração.
+ * Como os clientes de mensagem modo texto hoje existentes são limitados.
+ * Algumas lições sobre gerenciamento de projeto.
