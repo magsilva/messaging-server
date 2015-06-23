@@ -20,7 +20,7 @@
 #define CRC16_CCITT_POLY 0x8408
 
 
-unsigned short crc16_table( char *data, unsigned int size )
+unsigned short crc16_using_table( char *data, unsigned int size )
 {
 	register unsigned int i;
 	register unsigned short crc = 0;
@@ -45,7 +45,7 @@ unsigned short crc16_table( char *data, unsigned int size )
  * @return CRC6 value. Data is calcuated using the 16 bit ccitt polynomial.
  *
  */
-unsigned short crc16_poly(char *data_p, unsigned short length)
+unsigned short crc16_using_poly(char *data_p, unsigned short length)
 {
        unsigned char i;
        unsigned int data;
@@ -75,3 +75,7 @@ unsigned short crc16_poly(char *data_p, unsigned short length)
        return (crc);
 }
 
+unsigned short get_crc16( char *data, unsigned int size )
+{
+	return crc16_using_poly(data, size);
+}
