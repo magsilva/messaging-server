@@ -38,7 +38,7 @@ struct message_t {
 	char *arguments;
 	struct message_t *next;
 	struct sockaddr address;
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 unsigned int messageHeaderSize();
 
